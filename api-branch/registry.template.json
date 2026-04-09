@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "version": 1,
+    "created": "",
+    "description": "Cross-project API registry. Single source of truth for all external API integrations.",
+    "rules": [
+      "Never call an API endpoint not in this registry",
+      "Scanner reads code only -- never makes HTTP calls",
+      "All errors surfaced -- no silent failures",
+      "New APIs start as 'discovered' until manually verified"
+    ]
+  },
+  "projects": {},
+  "last_scan": null,
+  "scan_count": 0
+}
