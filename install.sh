@@ -143,6 +143,23 @@ else
     echo "  Template at: $KIT_DIR/templates/CLAUDE.md"
 fi
 
+# ── Install GitNexus (code knowledge graph) ──
+echo ""
+echo "  Setting up GitNexus (code knowledge graph)..."
+if command -v npm &>/dev/null; then
+    if ! command -v gitnexus &>/dev/null; then
+        npm install -g gitnexus 2>/dev/null && echo "  Installed: gitnexus (npm global)" || echo "  Warning: gitnexus install failed (npm error). Install manually: npm install -g gitnexus"
+    else
+        echo "  Skipped: gitnexus already installed ($(gitnexus --version))"
+    fi
+    # Auto-setup MCP for editors
+    if command -v gitnexus &>/dev/null; then
+        gitnexus setup 2>/dev/null && echo "  Configured: GitNexus MCP + skills + hooks" || echo "  Warning: gitnexus setup failed. Run manually: gitnexus setup"
+    fi
+else
+    echo "  Skipped: npm not found. Install Node.js first, then: npm install -g gitnexus"
+fi
+
 # ── Summary ──
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -152,6 +169,7 @@ echo ""
 echo "  What fires on every session start:"
 echo "    1. preflight.sh   -- forces reading atlas + protocol"
 echo "    2. scan_hook.sh   -- API branch status + new API detection"
+echo "    3. GitNexus hooks -- auto-reindex after code changes"
 echo ""
 echo "  Next steps:"
 echo "    1. Register your projects:"
@@ -160,10 +178,13 @@ echo ""
 echo "    2. Run first scan:"
 echo "       $PYTHON3 $API_DIR/scanner.py --scan --tree"
 echo ""
-echo "    3. Copy memory templates into your project:"
+echo "    3. Index your project with GitNexus:"
+echo "       cd /path/to/project && gitnexus analyze --skills"
+echo ""
+echo "    4. Copy memory templates into your project:"
 echo "       cp $KIT_DIR/memory-templates/*.md ~/.claude/projects/<your-project>/memory/"
 echo ""
-echo "    4. Edit CLAUDE.md with your project details:"
+echo "    5. Edit CLAUDE.md with your project details:"
 echo "       $CLAUDE_DIR/CLAUDE.md"
 echo ""
 echo "  Settings backup at: $SETTINGS.bak.*"
