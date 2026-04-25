@@ -1,0 +1,23 @@
+{
+  "skill_name": "senior-dev-mode",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I have a React component file that's grown to about 600 lines. It's got some old commented-out code and a few unused imports from when we tried a different approach. Can you refactor it to split it into smaller components and clean it up?",
+      "expected_output": "Claude should: (1) first propose removing dead code as Step 0 before refactoring, (2) break the work into phases and not attempt everything at once, (3) ask about or run type-checking after changes, (4) re-read files before editing them",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Rename the function `getUserData` to `fetchUserProfile` across my whole codebase. It's used in a bunch of files.",
+      "expected_output": "Claude should search across direct calls, type references, string literals, dynamic imports, re-exports, barrel files, and test mocks — not just do a single grep. Should surface all locations found before making changes.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We need to add authentication middleware, update the user model, refactor the routes, add new API endpoints, update the tests, and update the types. Can you do all of this?",
+      "expected_output": "Claude should refuse to do all of this in one go. Should break it into phases (max 5 files per phase), and for tasks touching >5 independent files should propose using parallel sub-agents. Should not just dive in sequentially.",
+      "files": []
+    }
+  ]
+}

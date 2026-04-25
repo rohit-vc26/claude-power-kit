@@ -1,136 +1,215 @@
-# Claude Power Kit
+# Claude Power Kit v2
 
-Dev protocol enforcement system for Claude Code. Prevents spec drift, wrong API assumptions, and wasted tokens across sessions.
+Full Claude Code agent setup — hooks, skills, NCS dashboard, GitNexus knowledge graph.
+One `git clone + bash install.sh` gives you the complete dev workflow on any machine.
 
-## What It Does
+**Works on:** macOS · Ubuntu · Linux
 
-Every time you start a Claude Code session, two hooks fire automatically:
+---
 
-1. **Preflight Check** -- reminds Claude to read the project atlas and dev protocol before writing any code
-2. **API Branch Scan** -- shows all known APIs across projects, flags any new API client files it discovers in your codebase
+## What You Get
 
-## What's Included
+### Layer 0 — Session Boot (fires on every session start)
 
 ```
-claude-power-kit/
-  install.sh                    # One-command installer
-  uninstall.sh                  # Clean removal
-  hooks/
-    preflight.sh                # Session start: atlas + protocol check
-    api_scan_hook.sh            # Session start: API registry status
-  api-branch/
-    scanner.py                  # API auto-discovery engine
-    registry.template.json      # Empty registry template
-  templates/
-    CLAUDE.md                   # Global Claude config template
-  memory-templates/
-    MEMORY.md                   # Memory index template
-    feedback_dev_protocol.md    # 5 dev rules to prevent drift
-    reference_project_atlas.template.md  # Project architecture template
+1. gstack-update-check    → skill update notifications
+2. GitNexus freshness     → index FRESH ✓ or STALE ⚠ before work begins
+3. NCS briefing           → agent roster + live task count
+4. live_session_tracker   → writes STARTING state to Karma
+5. preflight              → atlas / protocol / memory check per project
+6. api_scan_hook          → API registry scan across all projects
 ```
+
+### Layer 1 — Slash Commands
+
+All commands available in the Claude Code slash-command dropdown (`/`):
+
+| Command | Agent | Role |
+|---------|-------|------|
+| `/terra` | Terra | CEO — reads situation, delegates to right agent |
+| `/review` | Ignis | Code review |
+| `/investigate` | Ignis | Debugging & root cause |
+| `/plan-eng-review` | Ignis | Engineering plan review |
+| `/ops-manager` | Atlas | COO / Operations |
+| `/digital-marketing-pro` | Hermes | CMO / Growth |
+| `/design-consultation` | Aqua | Design direction |
+| `/design-review` | Aqua | Design quality check |
+| `/design-shotgun` | Aqua | Fast design options |
+| `/qa` | Zephyr | QA testing |
+| `/canary` | Zephyr | Smoke tests |
+| `/ship` | Solaris | Deploy + release |
+| `/land-and-deploy` | Solaris | Full deploy flow |
+| `/cso` | Ferrum | Security officer |
+| `/careful` `/guard` | Obsidian | Safety + blast radius |
+| `/freeze` `/unfreeze` | Obsidian | Lock/unlock deploys |
+| `/learn` | Mnemora | Save learnings to memory |
+| `/browse` | Spectra | Browser & recon |
+| `/ui-ux-pro-max` | Aqua | Full UI/UX rules + auto-reads DESIGN.md |
+| `/senior-dev-mode` | Ignis | Deep engineering mode |
+| `/security-guardian` | Ferrum | Security audit |
+| `/fullstack-developer` | Aqua | Full-stack build |
+| `/superpowers-debugging` | Ignis | Advanced debugging |
+| `/superpowers-tdd` | Zephyr | TDD workflow |
+| `/gitnexus-*` (7 skills) | — | Code graph: explore/debug/refactor/impact/pr-review |
+| + 15 more... | — | checkpoint, benchmark, autoplan, retro, health, ... |
+
+### Layer 2 — Active Work (every tool call)
+
+```
+PreToolUse  (Grep/Glob/Bash) → GitNexus enriches searches with graph context
+PostToolUse (Bash)           → GitNexus detects git mutations → flags stale index
+```
+
+### Layer 3 — Session Close
+
+```
+Stop      → live_session_tracker writes STOPPED
+SessionEnd → live_session_tracker writes ENDED
+SessionEnd → session_title_generator auto-titles from git commits (or Haiku LLM)
+```
+
+### Layer 4 — NCS Dashboard (always-on background)
+
+```
+http://localhost:3777 — Next.js agent dashboard
+  agents.json    → live agent status (Terra/Ignis/Atlas/...)
+  todos.json     → task queue
+  activity.json  → session history
+  /api/tasks     → POST endpoint for /terra to log delegated tasks
+```
+
+---
+
+## Agent Roster
+
+12-agent org chart — Terra orchestrates, all others execute:
+
+```
+Tier 0:  Terra    — CEO/Strategy (earth)
+Tier 1:  Ignis    — Engineering Lead
+         Hermes   — CMO/Growth
+         Atlas    — COO/Operations
+Tier 2:  Aqua     — Designer
+         Zephyr   — QA Engineer
+         Solaris  — Release Manager
+         Aether   — DevEx Lead
+         Mnemora  — Memory & Planning
+         Spectra  — Browser & Recon
+Tier 3:  Ferrum   — Security Officer
+         Obsidian — Safety Guardian
+```
+
+---
 
 ## Install
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/rohit-vc26/claude-power-kit
 cd claude-power-kit
 bash install.sh
 ```
 
 The installer:
-- Auto-detects your Python3 path
-- Creates `~/.claude/hooks/` and `~/.claude/api-branch/`
-- Merges hooks into your existing `settings.json` (doesn't overwrite)
-- Backs up settings before modifying
 
-## Post-Install Setup
+1. Detects platform (macOS/Ubuntu/Linux)
+2. Installs Node.js via nvm if missing
+3. Installs bun (required by gstack)
+4. Installs Claude Code CLI if missing
+5. Clones gstack → all slash commands available
+6. Installs custom skills (ui-ux-pro-max, ops-manager, senior-dev-mode, ...)
+7. Installs GitNexus globally + runs `gitnexus setup`
+8. Clones NCS dashboard → `~/neural-command-system/`
+9. Copies all hooks → `~/.claude/hooks/`
+10. Merges all 6 hook events into `~/.claude/settings.json`
 
-### 1. Register your projects
+---
+
+## Post-Install
+
+### 1. Index your project with GitNexus
 
 ```bash
-python3 ~/.claude/api-branch/scanner.py --add-project myapp /path/to/myapp
+cd /your/project
+npx gitnexus analyze
 ```
 
-### 2. Run first scan
+### 2. Register APIs for scanning
 
 ```bash
+python3 ~/.claude/api-branch/scanner.py --add-project myproject /path/to/project
 python3 ~/.claude/api-branch/scanner.py --scan --tree
 ```
 
-### 3. Set up project memory
+### 3. Start NCS dashboard
 
 ```bash
-# Create project memory directory
-mkdir -p ~/.claude/projects/-path-to-myapp/memory/
-
-# Copy templates
-cp memory-templates/*.md ~/.claude/projects/-path-to-myapp/memory/
-
-# Edit the atlas with your project details
+cd ~/neural-command-system && npm run dev
+# Open: http://localhost:3777
 ```
 
-Note: Claude Code encodes project paths by replacing `/` with `-` and prepending `-`. 
-Example: `/Users/john/projects/myapp` becomes `-Users-john-projects-myapp`.
-
-### 4. Add API details to registry
-
-When you discover/verify API integrations, add them to `~/.claude/api-branch/registry.json`. Each API entry should include:
-
-```json
-{
-  "name": "Service Name",
-  "base_url": "https://api.example.com/v1",
-  "auth": {
-    "method": "header|query_param|body|oauth2|sdk",
-    "key": "the auth key name",
-    "note": "important auth details"
-  },
-  "client_file": "app/services/example_client.py",
-  "status": "active",
-  "endpoints": [
-    {"method": "GET", "path": "/resource", "name": "List resources", "tested": true}
-  ],
-  "gotchas": [
-    "Important things to remember"
-  ]
-}
-```
-
-## Scanner Commands
+### 4. Add project memory templates
 
 ```bash
-python3 ~/.claude/api-branch/scanner.py                          # Status
-python3 ~/.claude/api-branch/scanner.py --scan                   # Full scan
-python3 ~/.claude/api-branch/scanner.py --scan --tree            # Scan + readable tree
-python3 ~/.claude/api-branch/scanner.py --scan --quiet           # Hook mode (minimal)
-python3 ~/.claude/api-branch/scanner.py --diff                   # Changes only
-python3 ~/.claude/api-branch/scanner.py --add-project NAME PATH  # Register project
-python3 ~/.claude/api-branch/scanner.py --tree                   # Generate tree view
+cp memory-templates/*.md ~/.claude/projects/<your-project>/memory/
 ```
 
-## How the Scanner Works
+---
 
-- Reads Python files looking for: base URL constants, auth patterns, `*Client`/`*Service` classes, SDK imports
-- Reads JS/TS files looking for: `fetch()` URLs, API base constants
-- Skips: test files, venv, node_modules, build dirs
-- Filters out: localhost, the project's own domain
-- **Never makes HTTP calls** -- read-only code analysis
-- **Never silently fails** -- all errors surface in output
+## Repo Structure
 
-## Uninstall
-
-```bash
-bash uninstall.sh
+```
+claude-power-kit/
+├── install.sh                         # One-command installer
+├── uninstall.sh                       # Clean removal
+├── hooks/
+│   ├── preflight.sh                   # SessionStart: atlas/protocol/memory check
+│   ├── api_scan_hook.sh               # SessionStart: API registry scan
+│   ├── ncs_briefing.sh                # SessionStart: NCS agent roster (dynamic node)
+│   ├── live_session_tracker.py        # SessionStart/UserPromptSubmit/Notification/Stop/SessionEnd
+│   ├── session_title_generator.py     # SessionEnd: auto-title from git/LLM
+│   └── gitnexus/
+│       └── gitnexus-hook.cjs          # SessionStart/PreToolUse/PostToolUse: graph context
+├── api-branch/
+│   ├── scanner.py                     # API auto-discovery engine
+│   └── registry.template.json        # Empty registry template
+├── skills/                            # Custom skills not in gstack
+│   ├── ui-ux-pro-max/                 # UI/UX rules + DESIGN.md reader (v2)
+│   ├── ops-manager/                   # Atlas: COO operations skill
+│   ├── digital-marketing-pro/         # Hermes: CMO/growth skill
+│   ├── senior-dev-mode/               # Ignis: deep engineering
+│   ├── security-guardian/             # Ferrum: security audit
+│   ├── fullstack-developer/           # Aqua: full-stack build
+│   ├── superpowers-debugging/         # Advanced debugging
+│   ├── superpowers-tdd/               # TDD workflow
+│   ├── superpowers-brainstorming/     # Ideation
+│   └── superpowers-writing-plans/     # Planning docs
+├── templates/
+│   ├── CLAUDE.md                      # Global Claude config template
+│   └── settings.json.template         # Full hooks config (all 6 events)
+└── memory-templates/
+    ├── MEMORY.md                      # Memory index template
+    ├── feedback_dev_protocol.md       # 5 dev rules to prevent drift
+    └── reference_project_atlas.template.md
 ```
 
-Removes hooks, scanner, and registry. Project memory files are left untouched.
+---
 
-## The Dev Protocol (Why This Exists)
+## Ubuntu Notes
 
-Five rules learned from expensive mistakes:
+All hooks use `python3` and `node` via PATH — no hardcoded macOS paths.
+The installer auto-detects or installs Node.js via nvm on Ubuntu.
+NCS dashboard runs identically on Ubuntu (Next.js).
 
-1. **Never assume APIs** -- get the official docs, verify with curl, then code
-2. **Spec-first build** -- read the spec, make a checklist, get confirmation
-3. **Session handoff** -- save verified/assumed/pending state before context fills
-4. **One integration at a time** -- don't build multiple API clients in parallel
-5. **Cost-aware debugging** -- diagnose failures, don't guess-and-retry
+---
+
+## Hook Event Map
+
+| Event | What fires |
+|-------|------------|
+| `SessionStart` | gstack check → gitnexus freshness → NCS briefing → tracker STARTING → preflight → api scan |
+| `UserPromptSubmit` | tracker → LIVE |
+| `Notification` | tracker → WAITING or STALE |
+| `PreToolUse` | gitnexus enriches Grep/Glob/Bash with graph context |
+| `PostToolUse` | gitnexus detects stale index after git mutations |
+| `Stop` | tracker → STOPPED |
+| `SessionEnd` | tracker → ENDED · session title generator |

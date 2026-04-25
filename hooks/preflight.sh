@@ -1,18 +1,13 @@
 #!/bin/bash
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRE-FLIGHT CHECKLIST -- SessionStart hook
-# Forces Claude to read atlas + protocol before coding.
-# Paths are auto-detected from $PWD.
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Pre-flight checklist -- outputs at every session start
+# Forces Claude to see the dev protocol before writing any code
 
-PROJECT_DIR="${PWD}"
-PROJECT_NAME=$(basename "$PROJECT_DIR")
+PROJECT_DIR="$(pwd)"
+PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
-# Derive the Claude memory path for this project
-# Claude Code uses: ~/.claude/projects/-<path-with-dashes>/memory/
+# Claude Code encodes project paths as: -Users-solvix-Desktop-projectname
 ENCODED_PATH=$(echo "$PROJECT_DIR" | sed 's|^/||' | tr '/' '-')
 MEMORY_DIR="$HOME/.claude/projects/-${ENCODED_PATH}/memory"
-MEMORY_INDEX="$MEMORY_DIR/MEMORY.md"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " PRE-FLIGHT CHECKLIST"
@@ -20,28 +15,26 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo " Project: $PROJECT_NAME"
 echo ""
 
-# Check for atlas
-ATLAS=$(find "$MEMORY_DIR" -maxdepth 1 -name "*atlas*" 2>/dev/null | head -1)
-if [ -n "$ATLAS" ]; then
-    echo " ATLAS     Found -> READ $(basename "$ATLAS") FIRST"
-else
-    echo " ATLAS     Not found -- create one with project architecture details"
+# Check what exists
+HAS_ATLAS=0; HAS_PROTO=0; MEM_COUNT=0
+
+if [ -f "$MEMORY_DIR/reference_project_atlas.md" ]; then
+    HAS_ATLAS=1
+    echo " ATLAS     Found -> READ reference_project_atlas.md FIRST"
 fi
 
-# Check for protocol
-PROTOCOL=$(find "$MEMORY_DIR" -maxdepth 1 -name "*protocol*" 2>/dev/null | head -1)
-if [ -n "$PROTOCOL" ]; then
-    echo " PROTOCOL  Found -> READ $(basename "$PROTOCOL") before coding"
-else
-    echo " PROTOCOL  Not found -- create one from memory-templates/feedback_dev_protocol.md"
+if [ -f "$MEMORY_DIR/feedback_dev_protocol.md" ]; then
+    HAS_PROTO=1
+    echo " PROTOCOL  Found -> READ feedback_dev_protocol.md before coding"
 fi
 
-# Count memory entries
-if [ -f "$MEMORY_INDEX" ]; then
-    COUNT=$(grep -c '^\- \[' "$MEMORY_INDEX" 2>/dev/null || echo "0")
-    echo " MEMORY    $COUNT entries indexed in MEMORY.md"
-else
-    echo " MEMORY    No MEMORY.md found -- initialize memory system"
+if [ -f "$MEMORY_DIR/MEMORY.md" ]; then
+    MEM_COUNT=$(grep -c "^-" "$MEMORY_DIR/MEMORY.md" 2>/dev/null || echo "0")
+    echo " MEMORY    $MEM_COUNT entries indexed in MEMORY.md"
+fi
+
+if [ "$HAS_ATLAS" -eq 0 ] && [ "$HAS_PROTO" -eq 0 ]; then
+    echo " WARNING   No atlas or protocol found for this project"
 fi
 
 echo ""
