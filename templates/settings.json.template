@@ -61,6 +61,16 @@
             "timeout": 8000
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/power_kit_update_check.sh",
+            "timeout": 4000
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

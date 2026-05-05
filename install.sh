@@ -108,6 +108,16 @@ cp "$KIT_DIR/hooks/dev_rules_guard.sh" "$HOOKS_DIR/dev_rules_guard.sh"
 chmod +x "$HOOKS_DIR/dev_rules_guard.sh"
 ok "dev_rules_guard.sh"
 
+cp "$KIT_DIR/hooks/power_kit_update_check.sh" "$HOOKS_DIR/power_kit_update_check.sh"
+chmod +x "$HOOKS_DIR/power_kit_update_check.sh"
+ok "power_kit_update_check.sh"
+
+# Write installed-version marker for self-update check
+if [ -f "$KIT_DIR/VERSION" ]; then
+    cp "$KIT_DIR/VERSION" "$CLAUDE_DIR/.power-kit-version"
+    ok "version marker: $(cat "$KIT_DIR/VERSION")"
+fi
+
 sed "s|__PYTHON3__|$PYTHON3|g" "$KIT_DIR/hooks/api_scan_hook.sh" > "$API_DIR/scan_hook.sh"
 chmod +x "$API_DIR/scan_hook.sh"
 ok "api_scan_hook.sh"
@@ -270,6 +280,7 @@ spec = [
     ("SessionStart", "", "bash ~/.claude/hooks/ncs_briefing.sh", 10000, None),
     ("SessionStart", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionStart", "", "bash ~/.claude/hooks/preflight.sh", 5000, None),
+    ("SessionStart", "", "bash ~/.claude/hooks/power_kit_update_check.sh", 4000, None),
     ("SessionStart", "", "bash ~/.claude/api-branch/scan_hook.sh", 8000, None),
     # UserPromptSubmit — tracker LIVE
     ("UserPromptSubmit", "", "python3 ~/.claude/hooks/live_session_tracker.py", 3000, None),
