@@ -67,8 +67,28 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/memory_health.sh",
+            "timeout": 4000
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/power_kit_update_check.sh",
             "timeout": 4000
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/memory_git_backup.sh",
+            "timeout": 6000
           }
         ]
       }
@@ -163,6 +183,16 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/session_title_generator.py",
             "timeout": 15000
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/memory_sync.sh",
+            "timeout": 6000
           }
         ]
       }

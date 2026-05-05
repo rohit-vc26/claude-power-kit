@@ -112,6 +112,63 @@ cp "$KIT_DIR/hooks/power_kit_update_check.sh" "$HOOKS_DIR/power_kit_update_check
 chmod +x "$HOOKS_DIR/power_kit_update_check.sh"
 ok "power_kit_update_check.sh"
 
+# v3.2: memory backup + health hooks
+mkdir -p "$HOOKS_DIR/lib"
+cp "$KIT_DIR/hooks/lib/secret_scan.sh" "$HOOKS_DIR/lib/secret_scan.sh"
+chmod +x "$HOOKS_DIR/lib/secret_scan.sh"
+ok "lib/secret_scan.sh"
+
+cp "$KIT_DIR/hooks/memory_sync.sh" "$HOOKS_DIR/memory_sync.sh"
+chmod +x "$HOOKS_DIR/memory_sync.sh"
+ok "memory_sync.sh"
+
+cp "$KIT_DIR/hooks/memory_git_backup.sh" "$HOOKS_DIR/memory_git_backup.sh"
+chmod +x "$HOOKS_DIR/memory_git_backup.sh"
+ok "memory_git_backup.sh"
+
+cp "$KIT_DIR/hooks/memory_health.sh" "$HOOKS_DIR/memory_health.sh"
+chmod +x "$HOOKS_DIR/memory_health.sh"
+ok "memory_health.sh"
+
+# Restore CLI in PATH
+mkdir -p "$HOME/.local/bin"
+cp "$KIT_DIR/bin/power-kit-memory-restore" "$HOME/.local/bin/power-kit-memory-restore"
+chmod +x "$HOME/.local/bin/power-kit-memory-restore"
+ok "bin: power-kit-memory-restore (in ~/.local/bin)"
+
+# Memory backup config — only ask once on first install
+PK_CONFIG="$CLAUDE_DIR/.power-kit-config"
+if [ ! -f "$PK_CONFIG" ]; then
+    OS_KIND=$(uname -s)
+    case "$OS_KIND" in
+        Darwin)  DEFAULT_BAK="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Claude-Memory-Backup" ;;
+        Linux)
+            if [ -d "/mnt/c/Users" ]; then
+                # WSL: pick first OneDrive folder we can find
+                ONEDRIVE=$(find /mnt/c/Users -maxdepth 3 -type d -name "OneDrive*" 2>/dev/null | head -1)
+                DEFAULT_BAK="${ONEDRIVE:-$HOME/Dropbox}/Claude-Memory-Backup"
+            else
+                DEFAULT_BAK="$HOME/Dropbox/Claude-Memory-Backup"
+            fi
+            ;;
+        *) DEFAULT_BAK="$HOME/Claude-Memory-Backup" ;;
+    esac
+    cat > "$PK_CONFIG" <<EOC
+# claude-power-kit config (v3.2+) — edit to enable memory backup
+# Cloud-folder sync (rsync to local cloud-synced folder, runs on SessionEnd)
+POWER_KIT_BACKUP_ENABLED=false
+POWER_KIT_BACKUP_DIR="$DEFAULT_BAK"
+POWER_KIT_BACKUP_MIN_INTERVAL=600
+
+# Private GitHub repo backup (weekly, runs on SessionStart)
+POWER_KIT_GIT_BACKUP_ENABLED=false
+POWER_KIT_GIT_BACKUP_REPO=""
+POWER_KIT_GIT_BACKUP_INTERVAL=604800
+EOC
+    chmod 600 "$PK_CONFIG"
+    ok "config: $PK_CONFIG (backups disabled by default - edit to enable)"
+fi
+
 # Write installed-version marker for self-update check
 if [ -f "$KIT_DIR/VERSION" ]; then
     cp "$KIT_DIR/VERSION" "$CLAUDE_DIR/.power-kit-version"
@@ -280,7 +337,11 @@ spec = [
     ("SessionStart", "", "bash ~/.claude/hooks/ncs_briefing.sh", 10000, None),
     ("SessionStart", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionStart", "", "bash ~/.claude/hooks/preflight.sh", 5000, None),
+    ("SessionStart", "", "bash ~/.claude/hooks/memory_health.sh", 4000, None),
     ("SessionStart", "", "bash ~/.claude/hooks/power_kit_update_check.sh", 4000, None),
+    ("SessionStart", "", "bash ~/.claude/hooks/memory_git_backup.sh", 6000, None),
+    # SessionEnd — cloud-folder sync after each session
+    ("SessionEnd", "", "bash ~/.claude/hooks/memory_sync.sh", 6000, None),
     ("SessionStart", "", "bash ~/.claude/api-branch/scan_hook.sh", 8000, None),
     # UserPromptSubmit — tracker LIVE
     ("UserPromptSubmit", "", "python3 ~/.claude/hooks/live_session_tracker.py", 3000, None),

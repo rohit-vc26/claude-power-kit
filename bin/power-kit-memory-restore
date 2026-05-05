@@ -1,0 +1,113 @@
+#!/bin/bash
+# power-kit-memory-restore - One-command restore of claude-mem DB + project
+# memory from either local cloud-folder backup or private git repo backup.
+#
+# Usage:
+#   power-kit-memory-restore                  # auto: prefer local-cloud, fall back to git
+#   power-kit-memory-restore --from-cloud     # force local cloud-folder source
+#   power-kit-memory-restore --from-git       # force git repo source
+#   power-kit-memory-restore --dry-run        # show what would be restored
+#
+# Reads source paths from ~/.claude/.power-kit-config (POWER_KIT_BACKUP_DIR,
+# POWER_KIT_GIT_BACKUP_REPO).
+#
+# SAFETY:
+#   - Refuses to overwrite if ~/.claude-mem/claude-mem.db is non-empty,
+#     unless --force passed.
+#   - Always backs up the current ~/.claude-mem/ to a timestamped sibling
+#     before overwriting.
+
+set -u
+
+SOURCE="auto"
+DRY_RUN=0
+FORCE=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --from-cloud) SOURCE="cloud" ;;
+        --from-git)   SOURCE="git" ;;
+        --dry-run)    DRY_RUN=1 ;;
+        --force)      FORCE=1 ;;
+        -h|--help)
+            sed -n '2,18p' "$0" | sed 's/^# //; s/^#//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown flag: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+CONFIG="$HOME/.claude/.power-kit-config"
+[ -f "$CONFIG" ] && . "$CONFIG"
+
+# Determine source dir
+SRC_DIR=""
+if [ "$SOURCE" = "auto" ] || [ "$SOURCE" = "cloud" ]; then
+    if [ -n "${POWER_KIT_BACKUP_DIR:-}" ] && [ -d "$POWER_KIT_BACKUP_DIR/claude-mem" ]; then
+        SRC_DIR="$POWER_KIT_BACKUP_DIR"
+    fi
+fi
+if [ -z "$SRC_DIR" ] && { [ "$SOURCE" = "auto" ] || [ "$SOURCE" = "git" ]; }; then
+    if [ -n "${POWER_KIT_GIT_BACKUP_REPO:-}" ]; then
+        TMP=$(mktemp -d 2>/dev/null) || { echo "mktemp failed"; exit 1; }
+        echo "Cloning git backup..."
+        if git clone --quiet --depth 1 "$POWER_KIT_GIT_BACKUP_REPO" "$TMP" 2>/dev/null; then
+            SRC_DIR="$TMP"
+            CLEANUP_TMP="$TMP"
+        else
+            echo "Git clone failed: $POWER_KIT_GIT_BACKUP_REPO" >&2
+            rm -rf "$TMP"
+        fi
+    fi
+fi
+
+if [ -z "$SRC_DIR" ] || [ ! -d "$SRC_DIR/claude-mem" ]; then
+    echo "No backup source found." >&2
+    echo "  Cloud:  ${POWER_KIT_BACKUP_DIR:-<unset>}" >&2
+    echo "  Git:    ${POWER_KIT_GIT_BACKUP_REPO:-<unset>}" >&2
+    exit 1
+fi
+
+echo "Source: $SRC_DIR"
+[ -d "$SRC_DIR/claude-mem" ] && echo "  - claude-mem: $(du -sh "$SRC_DIR/claude-mem" 2>/dev/null | awk '{print $1}')"
+[ -d "$SRC_DIR/projects" ] && echo "  - projects:   $(du -sh "$SRC_DIR/projects" 2>/dev/null | awk '{print $1}')"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    echo "(dry-run) Would copy claude-mem and projects into ~/.claude-mem/ and ~/.claude/projects/"
+    [ -n "${CLEANUP_TMP:-}" ] && rm -rf "$CLEANUP_TMP"
+    exit 0
+fi
+
+# Safety: existing data check
+EXISTING_DB="$HOME/.claude-mem/claude-mem.db"
+if [ -s "$EXISTING_DB" ] && [ "$FORCE" -ne 1 ]; then
+    echo "Refusing to overwrite existing $EXISTING_DB ($(stat -f%z "$EXISTING_DB" 2>/dev/null || stat -c%s "$EXISTING_DB" 2>/dev/null) bytes)." >&2
+    echo "Re-run with --force to overwrite. Current state will be backed up." >&2
+    [ -n "${CLEANUP_TMP:-}" ] && rm -rf "$CLEANUP_TMP"
+    exit 1
+fi
+
+# Pre-restore backup of whatever's there
+if [ -d "$HOME/.claude-mem" ]; then
+    BAK="$HOME/.claude-mem.bak-$(date +%Y%m%d-%H%M%S)"
+    cp -R "$HOME/.claude-mem" "$BAK" 2>/dev/null
+    echo "Backed up current claude-mem -> $BAK"
+fi
+
+# Restore
+mkdir -p "$HOME/.claude-mem" "$HOME/.claude/projects"
+rsync -a --delete \
+    --exclude='*.db-shm' --exclude='*.db-wal' \
+    "$SRC_DIR/claude-mem/" "$HOME/.claude-mem/" 2>/dev/null
+if [ -d "$SRC_DIR/projects" ]; then
+    rsync -a "$SRC_DIR/projects/" "$HOME/.claude/projects/" 2>/dev/null
+fi
+
+[ -n "${CLEANUP_TMP:-}" ] && rm -rf "$CLEANUP_TMP"
+
+echo "Restore complete."
+echo "  ~/.claude-mem/         <- restored"
+echo "  ~/.claude/projects/    <- restored (memory dirs only)"
+echo
+echo "Restart Claude Code to pick up the restored memory."
