@@ -104,6 +104,10 @@ cp "$KIT_DIR/hooks/preflight.sh" "$HOOKS_DIR/preflight.sh"
 chmod +x "$HOOKS_DIR/preflight.sh"
 ok "preflight.sh"
 
+cp "$KIT_DIR/hooks/dev_rules_guard.sh" "$HOOKS_DIR/dev_rules_guard.sh"
+chmod +x "$HOOKS_DIR/dev_rules_guard.sh"
+ok "dev_rules_guard.sh"
+
 sed "s|__PYTHON3__|$PYTHON3|g" "$KIT_DIR/hooks/api_scan_hook.sh" > "$API_DIR/scan_hook.sh"
 chmod +x "$API_DIR/scan_hook.sh"
 ok "api_scan_hook.sh"
@@ -273,6 +277,8 @@ spec = [
     ("Notification", "", "python3 ~/.claude/hooks/live_session_tracker.py", 3000, None),
     # PreToolUse — gitnexus enrichment
     ("PreToolUse", "Grep|Glob|Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Enriching with GitNexus graph context..."),
+    # PreToolUse — dev rules guard (em-dash, max-3-files, gitnexus-impact reminders)
+    ("PreToolUse", "Edit|Write|NotebookEdit|Bash", "bash ~/.claude/hooks/dev_rules_guard.sh", 3000, None),
     # PostToolUse — gitnexus stale detection
     ("PostToolUse", "Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Checking GitNexus index freshness..."),
     # Stop + SessionEnd

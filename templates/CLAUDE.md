@@ -33,3 +33,19 @@ When starting work on any project:
 - Include file paths, line numbers, deploy status
 
 **Cost awareness:** If an approach fails, diagnose why. Don't retry with a different guess -- ask the user for the source of truth.
+
+## Response Style Rules (anti-drift)
+
+These are hard rules. Drift is real -- the dev_rules_guard PreToolUse hook reminds you when you slip, but you should not need it.
+
+- **No em dashes.** Use hyphen (-) only. Em dash (--) is also banned. The character `—` is banned in all output (chat replies, code, comments, file content).
+- **Default answer length: under 6 lines.** Long responses only when the user asks for depth (review, plan, audit). Never pad with summaries-of-summaries or "TLDR" sections.
+- **No decorative tables or headers** unless the structure genuinely helps. One pass-through paragraph beats a 5-row table for most answers.
+- **Before editing any function/class:** run `gitnexus_impact <symbol>` and surface d=1 risk. No exceptions for "small" edits.
+- **Before any deploy:** run `gitnexus_detect_changes` and confirm scope matches expectation.
+- **Max 3 files per deploy batch.** If a feature touches more, split into staged rollouts. Coordinated multi-file releases require explicit user approval.
+- **Read models/schemas end-to-end** before writing code that uses them. Do not guess column names.
+- **Verify in production cleanly** before declaring success. One log line that says "OK" is worth more than three messages claiming "should work".
+
+## Behaviour When You Slip
+If you catch yourself drifting (long answer, em dash, skipped impact analysis), say so directly in the next message. Do not paper over it. The user values calibrated honesty more than polished prose.

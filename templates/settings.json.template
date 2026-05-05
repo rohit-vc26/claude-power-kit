@@ -98,6 +98,16 @@
             "statusMessage": "Enriching with GitNexus graph context..."
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/dev_rules_guard.sh",
+            "timeout": 3000
+          }
+        ]
       }
     ],
     "PostToolUse": [
