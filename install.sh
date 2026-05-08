@@ -17,6 +17,8 @@ err()  { echo -e "  ${RED}✗ $1${RESET}"; exit 1; }
 skip() { echo -e "  ${YELLOW}↷ $1${RESET}"; }
 
 PLATFORM=$(uname -s)   # Darwin | Linux
+FULL_INSTALL=false
+for arg in "$@"; do [ "$arg" = "--full" ] && FULL_INSTALL=true; done
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 HOOKS_DIR="$CLAUDE_DIR/hooks"
@@ -300,7 +302,7 @@ fi
 
 cp "$SETTINGS" "$SETTINGS.bak.$(date +%s)"
 
-$PYTHON3 - << 'PYEOF'
+FULL_INSTALL=$FULL_INSTALL $PYTHON3 - << 'PYEOF'
 import json, os
 
 settings_path = os.path.expanduser("~/.claude/settings.json")
@@ -330,8 +332,14 @@ def add_hook(event, matcher, command, timeout, status_msg=None):
     return True
 
 added = []
-spec = [
-    # SessionStart — order matters
+full_install = os.environ.get('FULL_INSTALL', 'false') == 'true'
+lean_spec = [
+    ("SessionStart", "", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 8000, "Checking GitNexus index freshness..."),
+    ("SessionStart", "", "bash ~/.claude/hooks/preflight.sh", 5000, None),
+    ("PreToolUse", "Edit|Write|NotebookEdit", "bash ~/.claude/hooks/dev_rules_guard.sh", 3000, None),
+    ("SessionEnd", "", "python3 ~/.claude/hooks/session_title_generator.py", 15000, None),
+]
+full_spec = [
     ("SessionStart", "", "~/.claude/skills/gstack/bin/gstack-update-check 2>/dev/null; mkdir -p ~/.gstack/sessions && touch ~/.gstack/sessions/\"$$\"; _LEARN=$(~/.claude/skills/gstack/bin/gstack-learnings-search --limit 3 2>/dev/null); [ -n \"$_LEARN\" ] && echo \"GSTACK_LEARNINGS: $_LEARN\" || true", 8000, None),
     ("SessionStart", "", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 8000, "Checking GitNexus index freshness..."),
     ("SessionStart", "", "bash ~/.claude/hooks/ncs_briefing.sh", 10000, None),
@@ -340,24 +348,18 @@ spec = [
     ("SessionStart", "", "bash ~/.claude/hooks/memory_health.sh", 4000, None),
     ("SessionStart", "", "bash ~/.claude/hooks/power_kit_update_check.sh", 4000, None),
     ("SessionStart", "", "bash ~/.claude/hooks/memory_git_backup.sh", 6000, None),
-    # SessionEnd — cloud-folder sync after each session
-    ("SessionEnd", "", "bash ~/.claude/hooks/memory_sync.sh", 6000, None),
     ("SessionStart", "", "bash ~/.claude/api-branch/scan_hook.sh", 8000, None),
-    # UserPromptSubmit — tracker LIVE
+    ("SessionEnd", "", "bash ~/.claude/hooks/memory_sync.sh", 6000, None),
     ("UserPromptSubmit", "", "python3 ~/.claude/hooks/live_session_tracker.py", 3000, None),
-    # Notification — tracker WAITING/STALE
     ("Notification", "", "python3 ~/.claude/hooks/live_session_tracker.py", 3000, None),
-    # PreToolUse — gitnexus enrichment
     ("PreToolUse", "Grep|Glob|Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Enriching with GitNexus graph context..."),
-    # PreToolUse — dev rules guard (em-dash, max-3-files, gitnexus-impact reminders)
     ("PreToolUse", "Edit|Write|NotebookEdit|Bash", "bash ~/.claude/hooks/dev_rules_guard.sh", 3000, None),
-    # PostToolUse — gitnexus stale detection
     ("PostToolUse", "Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Checking GitNexus index freshness..."),
-    # Stop + SessionEnd
     ("Stop", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/session_title_generator.py", 15000, None),
 ]
+spec = full_spec if full_install else lean_spec
 
 for event, matcher, cmd, timeout, msg in spec:
     if add_hook(event, matcher, cmd, timeout, msg):
@@ -389,13 +391,12 @@ echo -e "\n${BOLD}━━━━━━━━━━━━━━━━━━━━�
 echo -e "${BOLD}${GREEN} INSTALLED ✓${RESET}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
-echo "  Session boot fires (in order):"
-echo "    1. gstack-update-check  — skill updates"
-echo "    2. gitnexus             — index freshness (STALE/FRESH)"
-echo "    3. ncs_briefing         — agent roster + task count"
-echo "    4. live_session_tracker — Karma STARTING state"
-echo "    5. preflight            — atlas/protocol/memory check"
-echo "    6. api_scan_hook        — API registry status"
+if [ "$FULL_INSTALL" = "true" ]; then
+  echo "  Install mode: FULL (all hooks)"
+else
+  echo "  Install mode: LEAN - 4 hooks, minimal context burn"
+  echo "  For full suite: bash install.sh --full"
+fi
 echo ""
 echo "  Slash commands: /terra /qa /ship /review /investigate"
 echo "    /design-* /ops-manager /ui-ux-pro-max /gitnexus-* ..."

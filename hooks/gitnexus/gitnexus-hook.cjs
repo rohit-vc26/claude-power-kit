@@ -231,7 +231,10 @@ function handlePreToolUse(input) {
   }
 
   if (result && result.trim()) {
-    sendHookResponse('PreToolUse', result.trim());
+    const cleaned = result.split('\n')
+      .filter(line => !line.startsWith('[gitnexus]') && line.trim())
+      .join('\n').trim();
+    if (cleaned) sendHookResponse('PreToolUse', cleaned);
   }
 }
 
