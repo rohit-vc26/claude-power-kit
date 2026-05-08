@@ -9,47 +9,32 @@ PROJECT_NAME="$(basename "$PROJECT_DIR")"
 ENCODED_PATH=$(echo "$PROJECT_DIR" | sed 's|^/||' | tr '/' '-')
 MEMORY_DIR="$HOME/.claude/projects/-${ENCODED_PATH}/memory"
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " PRE-FLIGHT CHECKLIST"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " Project: $PROJECT_NAME"
-echo ""
-
-# Check what exists
+BAR="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 HAS_ATLAS=0; HAS_PROTO=0; MEM_COUNT=0
 
-if [ -f "$MEMORY_DIR/reference_project_atlas.md" ]; then
-    HAS_ATLAS=1
-    echo " ATLAS     Found -> READ reference_project_atlas.md FIRST"
+[ -f "$MEMORY_DIR/reference_project_atlas.md" ] && HAS_ATLAS=1
+[ -f "$MEMORY_DIR/feedback_dev_protocol.md" ]   && HAS_PROTO=1
+
+# No project context: print minimal notice (4 lines) and exit
+if [ "$HAS_ATLAS" -eq 0 ] && [ "$HAS_PROTO" -eq 0 ]; then
+    echo "$BAR"
+    echo " PRE-FLIGHT  $PROJECT_NAME"
+    echo " WARNING   No atlas or protocol found for this project"
+    echo "$BAR"
+    exit 0
 fi
 
-if [ -f "$MEMORY_DIR/feedback_dev_protocol.md" ]; then
-    HAS_PROTO=1
-    echo " PROTOCOL  Found -> READ feedback_dev_protocol.md before coding"
-fi
-
+# Project context found: print full checklist
+echo "$BAR"
+echo " PRE-FLIGHT CHECKLIST  ($PROJECT_NAME)"
+echo "$BAR"
+[ "$HAS_ATLAS" -eq 1 ] && echo " ATLAS     Found -> READ reference_project_atlas.md FIRST"
+[ "$HAS_PROTO" -eq 1 ] && echo " PROTOCOL  Found -> READ feedback_dev_protocol.md before coding"
 if [ -f "$MEMORY_DIR/MEMORY.md" ]; then
     MEM_COUNT=$(grep -c "^-" "$MEMORY_DIR/MEMORY.md" 2>/dev/null || echo "0")
     echo " MEMORY    $MEM_COUNT entries indexed in MEMORY.md"
 fi
-
-if [ "$HAS_ATLAS" -eq 0 ] && [ "$HAS_PROTO" -eq 0 ]; then
-    echo " WARNING   No atlas or protocol found for this project"
-fi
-
 echo ""
-echo " BEFORE ANY FEATURE WORK:"
-echo "   1. Read atlas + protocol + MEMORY.md"
-echo "   2. Ask user for source docs (PDF/Postman/Notion)"
-echo "   3. Verify API endpoints with curl BEFORE coding"
-echo "   4. Build incrementally -- max 3 items per deploy"
-echo "   5. Save session snapshot before context fills"
-echo ""
-echo " HARD RULES (anti-drift):"
-echo "   - NO em dashes in any output. Use hyphen (-) only."
-echo "   - Run gitnexus_impact BEFORE editing any function/class."
-echo "   - Run gitnexus_detect_changes BEFORE deploy."
-echo "   - Max 3 files per deploy batch. Always."
-echo "   - Default response: under 6 lines. Add detail only if asked."
-echo "   - No decorative tables/headers unless the answer needs them."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo " BEFORE CODING: read atlas + protocol + MEMORY.md | verify APIs with curl | max 3 files/deploy"
+echo " RULES: no em dashes | run gitnexus_impact before edits | run gitnexus_detect_changes before deploy"
+echo "$BAR"

@@ -232,7 +232,7 @@ function handlePreToolUse(input) {
 
   if (result && result.trim()) {
     const cleaned = result.split('\n')
-      .filter(line => !line.startsWith('[gitnexus]') && line.trim())
+      .filter(line => !line.startsWith('[GitNexus]') && line.trim())
       .join('\n').trim();
     if (cleaned) sendHookResponse('PreToolUse', cleaned);
   }
@@ -240,11 +240,16 @@ function handlePreToolUse(input) {
 
 /**
  * Emit a PostToolUse hook response with additional context for the agent.
+ * Truncates to 1500 chars to prevent large augment results from flooding context.
  */
 function sendHookResponse(hookEventName, message) {
+  const MAX_CHARS = 1500;
+  const out = message.length > MAX_CHARS
+    ? message.slice(0, MAX_CHARS) + '\n[...truncated]'
+    : message;
   console.log(
     JSON.stringify({
-      hookSpecificOutput: { hookEventName, additionalContext: message },
+      hookSpecificOutput: { hookEventName, additionalContext: out },
     }),
   );
 }
