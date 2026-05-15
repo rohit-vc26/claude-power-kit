@@ -224,10 +224,14 @@ if [ ! -f "$GSTACK_DIR/bin/gstack-update-check" ]; then
       if ( cd "$GSTACK_DIR" && ./setup --no-prefix 2>/dev/null ); then
         ok "gstack full setup complete (browse binary built)"
       else
-        warn "gstack full setup skipped (bun/Playwright not ready) — skills will be linked in step 8b"
+        warn "gstack full setup skipped (bun/Playwright not ready) — skills linked in step 8b"
       fi
     else
-      warn "gstack clone failed — skills will be installed from bundled skills/ directory"
+      warn "gstack unavailable (no network or clone failed)"
+      echo -e "  ${YELLOW}→ terra is bundled in this kit — installing from bundle${RESET}"
+      echo -e "  ${YELLOW}  /terra /qa /ship /review will activate via bundled SKILL.md files${RESET}"
+      echo -e "  ${YELLOW}  NCS workflow will still activate in step 8c${RESET}"
+      echo -e "  ${YELLOW}  Retry gstack later: git clone https://github.com/garrytan/gstack $GSTACK_DIR${RESET}"
     fi
   fi
 else
@@ -280,7 +284,7 @@ if [ -d "$GSTACK_DIR" ]; then
   done
   ok "gstack skills: $_linked newly linked, $_already already active"
 else
-  warn "gstack dir not found — no gstack skills to link"
+  ok "gstack not cloned — /terra and other bundled skills active via step 8"
 fi
 
 # Verify custom bundled skills have SKILL.md present
