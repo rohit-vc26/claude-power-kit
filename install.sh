@@ -293,6 +293,44 @@ if [ -d "$BUNDLED_SKILLS_DIR" ]; then
   ok "custom bundled skills: $_custom registered (/ui-ux-pro-max /ops-manager /senior-dev-mode ...)"
 fi
 
+# ── 8c. Terra + NCS workflow activation ─────────────────────
+# Initializes the gstack config + state dirs that terra's preamble
+# reads on every /terra invocation. All gstack bin/* tools are bash
+# scripts — no bun required. Also checks NCS status so terra can
+# log tasks to the dashboard immediately after install.
+step "Terra + NCS workflow activation"
+GSTACK_HOME="$HOME/.gstack"
+GSTACK_BIN="$SKILLS_DIR/gstack/bin"
+GSTACK_CONFIG_BIN="$GSTACK_BIN/gstack-config"
+
+# Create the ~/.gstack/ state dirs terra's preamble expects
+mkdir -p "$GSTACK_HOME/sessions" "$GSTACK_HOME/projects" "$GSTACK_HOME/analytics"
+ok "~/.gstack/ state dirs (sessions/ projects/ analytics/)"
+
+# Initialize gstack config using the bash script — works without bun
+if [ -x "$GSTACK_CONFIG_BIN" ]; then
+  "$GSTACK_CONFIG_BIN" set proactive     true     2>/dev/null && ok "gstack config: proactive=true"     || warn "gstack-config set proactive failed"
+  "$GSTACK_CONFIG_BIN" set skill_prefix  false    2>/dev/null && ok "gstack config: skill_prefix=false"  || warn "gstack-config set skill_prefix failed"
+  "$GSTACK_CONFIG_BIN" set telemetry     off      2>/dev/null && ok "gstack config: telemetry=off"       || warn "gstack-config set telemetry failed"
+  "$GSTACK_CONFIG_BIN" set checkpoint_mode explicit 2>/dev/null || true
+else
+  warn "gstack-config not found at $GSTACK_CONFIG_BIN — skipping config init (gstack clone may have failed)"
+fi
+
+# NCS status check — terra logs tasks to localhost:3777
+if curl -sf http://localhost:3777/api/health >/dev/null 2>&1; then
+  ok "NCS dashboard live at localhost:3777 — terra task logging active"
+elif [ -d "$NCS_DIR" ] && [ -f "$NCS_DIR/package.json" ]; then
+  warn "NCS installed but not running"
+  echo -e "  ${YELLOW}→ Start it: cd $NCS_DIR && npm run dev${RESET}"
+  echo -e "  ${YELLOW}  Terra will log to localhost:3777 once NCS is up${RESET}"
+else
+  warn "NCS not found — terra will work offline (no dashboard logging)"
+  echo -e "  ${YELLOW}→ Clone: git clone git@github.com:rohit-vc26/IQ.git $NCS_DIR${RESET}"
+fi
+
+ok "Terra ready — run /terra in any Claude Code session to activate the NCS workflow"
+
 # ── 9. GitNexus ──────────────────────────────────────────────
 step "GitNexus (code knowledge graph)"
 if command -v npm >/dev/null 2>&1; then
@@ -443,19 +481,24 @@ echo ""
 echo "  Slash commands: /terra /qa /ship /review /investigate"
 echo "    /design-* /ops-manager /ui-ux-pro-max /gitnexus-* ..."
 echo ""
-echo "  Next steps:"
-echo "    1. Index your project:"
-echo "       cd /your/project && npx gitnexus analyze"
-echo ""
-echo "    2. Register APIs:"
-echo "       python3 $API_DIR/scanner.py --add-project myproject /path/to/project"
-echo "       python3 $API_DIR/scanner.py --scan --tree"
-echo ""
-echo "    3. Start NCS dashboard:"
+echo -e "  ${BOLD}Start the workflow:${RESET}"
+echo "    1. Start NCS dashboard (terra needs this to log tasks):"
 echo "       cd $NCS_DIR && npm run dev"
 echo "       Open: http://localhost:3777"
 echo ""
-echo "    4. Copy memory templates to a project:"
+echo "    2. Open Claude Code in any project and type:"
+echo "       /terra"
+echo "       Terra reads the situation, picks the right agent, and delegates."
+echo ""
+echo -e "  ${BOLD}Other setup:${RESET}"
+echo "    3. Index your project for GitNexus:"
+echo "       cd /your/project && npx gitnexus analyze"
+echo ""
+echo "    4. Register APIs:"
+echo "       python3 $API_DIR/scanner.py --add-project myproject /path/to/project"
+echo "       python3 $API_DIR/scanner.py --scan --tree"
+echo ""
+echo "    5. Copy memory templates to a project:"
 echo "       cp $KIT_DIR/memory-templates/*.md ~/.claude/projects/<project>/memory/"
 echo ""
 echo "  Settings backup at: $SETTINGS.bak.*"
