@@ -16,7 +16,8 @@ warn() { echo -e "  ${YELLOW}⚠ $1${RESET}"; }
 err()  { echo -e "  ${RED}✗ $1${RESET}"; exit 1; }
 skip() { echo -e "  ${YELLOW}↷ $1${RESET}"; }
 
-PLATFORM=$(uname -s)   # Darwin | Linux
+PLATFORM=$(uname -s)   # Darwin | Linux | MINGW64_NT (Git Bash) | MSYS
+case "$PLATFORM" in MINGW*|MSYS*|CYGWIN*) PLATFORM="Windows" ;; esac
 FULL_INSTALL=false
 for arg in "$@"; do [ "$arg" = "--full" ] && FULL_INSTALL=true; done
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -48,6 +49,8 @@ if [ -z "$PYTHON3" ]; then
     warn "python3 not found — installing via apt"
     sudo apt-get update -qq && sudo apt-get install -y python3 python3-pip
     PYTHON3="$(which python3)"
+  elif [ "$PLATFORM" = "Windows" ]; then
+    err "Python3 not found. Install Python 3.11+ first: winget install Python.Python.3.11"
   else
     err "Python3 not found. Install Python 3.11+ first: brew install python3"
   fi
@@ -67,24 +70,33 @@ for candidate in \
 done
 
 if [ -z "$NODE" ]; then
-  warn "Node.js not found — installing via nvm"
-  export NVM_DIR="$HOME/.nvm"
-  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-  [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-  nvm install --lts && nvm use --lts
-  NODE="$(which node)"
+  if [ "$PLATFORM" = "Windows" ]; then
+    err "Node.js not found. Install it first: winget install OpenJS.NodeJS.LTS  (then re-open Git Bash)"
+  else
+    warn "Node.js not found — installing via nvm"
+    export NVM_DIR="$HOME/.nvm"
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm install --lts && nvm use --lts
+    NODE="$(which node)"
+  fi
 fi
 export PATH="$(dirname "$NODE"):$PATH"
 ok "Node: $NODE ($($NODE --version))"
 
-# ── 3. bun (required by gstack) ───────────────────────────────
+# ── 3. bun (required by gstack browse binary) ────────────────
 step "bun"
 if ! command -v bun >/dev/null 2>&1 && [ ! -x "$HOME/.bun/bin/bun" ]; then
-  warn "bun not found — installing"
-  curl -fsSL https://bun.sh/install | bash
+  if [ "$PLATFORM" = "Windows" ]; then
+    warn "bun not found — installing via npm (Windows)"
+    npm install -g bun 2>/dev/null || warn "bun install failed — gstack browse binary won't build (skills still work)"
+  else
+    warn "bun not found — installing"
+    curl -fsSL https://bun.sh/install | bash
+  fi
 fi
 export PATH="$HOME/.bun/bin:$PATH"
-ok "bun $(bun --version 2>/dev/null || echo 'installed')"
+ok "bun $(bun --version 2>/dev/null || echo 'not available — skills work without it')"
 
 # ── 4. Claude Code CLI ────────────────────────────────────────
 step "Claude Code CLI"
