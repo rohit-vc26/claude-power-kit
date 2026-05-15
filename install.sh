@@ -216,12 +216,16 @@ if [ ! -f "$GSTACK_DIR/bin/gstack-update-check" ]; then
     warn "Installing gstack from bundled skills.zip"
     unzip -q "$SKILLS_ZIP" -d "$CLAUDE_DIR/"
     ok "Skills extracted from skills.zip"
-    cd "$GSTACK_DIR" && ./setup && cd - >/dev/null
+    ( cd "$GSTACK_DIR" && ./setup --no-prefix 2>/dev/null ) || warn "gstack full setup skipped (bun/Playwright not ready) — skills will be linked in step 8b"
   else
     warn "Cloning gstack from GitHub"
     if git clone --depth 1 https://github.com/garrytan/gstack "$GSTACK_DIR" 2>/dev/null; then
-      cd "$GSTACK_DIR" && ./setup && cd - >/dev/null
-      ok "gstack cloned and set up"
+      ok "gstack cloned"
+      if ( cd "$GSTACK_DIR" && ./setup --no-prefix 2>/dev/null ); then
+        ok "gstack full setup complete (browse binary built)"
+      else
+        warn "gstack full setup skipped (bun/Playwright not ready) — skills will be linked in step 8b"
+      fi
     else
       warn "gstack clone failed — skills will be installed from bundled skills/ directory"
     fi
@@ -249,6 +253,44 @@ if [ -d "$BUNDLED_SKILLS_DIR" ]; then
   done
 else
   skip "No bundled skills/ directory found"
+fi
+
+# ── 8b. Guarantee all skills are linked as /slash commands ───
+# Runs unconditionally after steps 7+8. Links every SKILL.md found under
+# ~/.claude/skills/gstack/* directly into ~/.claude/skills/<name>/ so that
+# Claude Code discovers them as top-level commands (/terra, /qa, /ship …).
+# This is a pure-bash fallback — works even when bun/Playwright setup failed.
+step "Registering all skills as /slash commands"
+_linked=0
+_already=0
+
+if [ -d "$GSTACK_DIR" ]; then
+  for _skill_dir in "$GSTACK_DIR"/*/; do
+    [ -f "$_skill_dir/SKILL.md" ] || continue
+    _name=$(basename "$_skill_dir")
+    [ "$_name" = "node_modules" ] && continue
+    _target="$SKILLS_DIR/$_name"
+    mkdir -p "$_target"
+    if [ ! -e "$_target/SKILL.md" ]; then
+      ln -snf "$(cd "$_skill_dir" && pwd)/SKILL.md" "$_target/SKILL.md"
+      _linked=$((_linked + 1))
+    else
+      _already=$((_already + 1))
+    fi
+  done
+  ok "gstack skills: $_linked newly linked, $_already already active"
+else
+  warn "gstack dir not found — no gstack skills to link"
+fi
+
+# Verify custom bundled skills have SKILL.md present
+_custom=0
+if [ -d "$BUNDLED_SKILLS_DIR" ]; then
+  for _skill_dir in "$BUNDLED_SKILLS_DIR"/*/; do
+    _name=$(basename "$_skill_dir")
+    [ -f "$SKILLS_DIR/$_name/SKILL.md" ] && _custom=$((_custom + 1)) || true
+  done
+  ok "custom bundled skills: $_custom registered (/ui-ux-pro-max /ops-manager /senior-dev-mode ...)"
 fi
 
 # ── 9. GitNexus ──────────────────────────────────────────────
