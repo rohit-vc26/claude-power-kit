@@ -144,6 +144,14 @@ cp "$KIT_DIR/hooks/memory_health.sh" "$HOOKS_DIR/memory_health.sh"
 chmod +x "$HOOKS_DIR/memory_health.sh"
 ok "memory_health.sh"
 
+cp "$KIT_DIR/hooks/memory_index_guard.sh" "$HOOKS_DIR/memory_index_guard.sh"
+chmod +x "$HOOKS_DIR/memory_index_guard.sh"
+ok "memory_index_guard.sh"
+
+cp "$KIT_DIR/hooks/registry_sync_guard.sh" "$HOOKS_DIR/registry_sync_guard.sh"
+chmod +x "$HOOKS_DIR/registry_sync_guard.sh"
+ok "registry_sync_guard.sh"
+
 # Restore CLI in PATH
 mkdir -p "$HOME/.local/bin"
 cp "$KIT_DIR/bin/power-kit-memory-restore" "$HOME/.local/bin/power-kit-memory-restore"
@@ -230,8 +238,9 @@ if [ ! -f "$GSTACK_DIR/bin/gstack-update-check" ]; then
     ok "Skills extracted from skills.zip"
     ( cd "$GSTACK_DIR" && ./setup --no-prefix 2>/dev/null ) || warn "gstack full setup skipped (bun/Playwright not ready) — skills will be linked in step 8b"
   else
-    warn "Cloning gstack from GitHub"
-    if git clone --depth 1 https://github.com/garrytan/gstack "$GSTACK_DIR" 2>/dev/null; then
+    warn "Cloning gstack from GitHub (public repo)"
+    _gstack_err=$(mktemp)
+    if git clone --depth 1 https://github.com/garrytan/gstack "$GSTACK_DIR" 2>"$_gstack_err"; then
       ok "gstack cloned"
       if ( cd "$GSTACK_DIR" && ./setup --no-prefix 2>/dev/null ); then
         ok "gstack full setup complete (browse binary built)"
@@ -239,12 +248,15 @@ if [ ! -f "$GSTACK_DIR/bin/gstack-update-check" ]; then
         warn "gstack full setup skipped (bun/Playwright not ready) — skills linked in step 8b"
       fi
     else
-      warn "gstack unavailable (no network or clone failed)"
-      echo -e "  ${YELLOW}→ terra is bundled in this kit — installing from bundle${RESET}"
-      echo -e "  ${YELLOW}  /terra /qa /ship /review will activate via bundled SKILL.md files${RESET}"
-      echo -e "  ${YELLOW}  NCS workflow will still activate in step 8c${RESET}"
-      echo -e "  ${YELLOW}  Retry gstack later: git clone https://github.com/garrytan/gstack $GSTACK_DIR${RESET}"
+      warn "gstack clone FAILED. Reason:"
+      sed 's/^/    /' "$_gstack_err"
+      warn "  Most likely causes: no network, git not installed, or HTTPS blocked by a proxy."
+      echo -e "  ${YELLOW}→ terra is bundled in this kit — activating from local bundle${RESET}"
+      echo -e "  ${YELLOW}  /terra will activate via the bundled SKILL.md.${RESET}"
+      echo -e "  ${YELLOW}  /qa /ship /review etc. need gstack — install once network is available:${RESET}"
+      echo -e "  ${YELLOW}    git clone https://github.com/garrytan/gstack $GSTACK_DIR${RESET}"
     fi
+    rm -f "$_gstack_err"
   fi
 else
   skip "gstack already installed ($(cat "$GSTACK_DIR/VERSION" 2>/dev/null || echo 'unknown'))"
@@ -367,17 +379,33 @@ fi
 # ── 10. NCS dashboard (Neural Command System) ────────────────
 step "NCS Dashboard (agent roster + task queue at localhost:3777)"
 if [ ! -d "$NCS_DIR" ]; then
-  warn "Cloning NCS dashboard"
-  if git clone --depth 1 git@github.com:rohit-vc26/IQ.git "$NCS_DIR" 2>/dev/null || \
-     git clone --depth 1 https://github.com/rohit-vc26/IQ.git "$NCS_DIR" 2>/dev/null; then
+  warn "Cloning NCS dashboard (public repo)"
+  _ncs_err=$(mktemp)
+  # Try HTTPS first — works for everyone, no SSH key needed.
+  # Fall back to SSH only with BatchMode so it doesn't prompt for a password
+  # when keys aren't loaded. Both errors captured.
+  if git clone --depth 1 https://github.com/rohit-vc26/IQ.git "$NCS_DIR" 2>"$_ncs_err"; then
+    ok "NCS cloned via HTTPS to $NCS_DIR"
+    _ncs_cloned=1
+  elif git -c core.sshCommand="ssh -o BatchMode=yes" clone --depth 1 git@github.com:rohit-vc26/IQ.git "$NCS_DIR" 2>>"$_ncs_err"; then
+    ok "NCS cloned via SSH to $NCS_DIR"
+    _ncs_cloned=1
+  else
+    warn "NCS clone FAILED. Both HTTPS and SSH errored. Details:"
+    sed 's/^/    /' "$_ncs_err"
+    warn "  Most likely causes:"
+    warn "    - No network / corporate proxy blocking github.com"
+    warn "    - git not installed (Windows users: install Git for Windows + run from Git Bash)"
+    warn "  Manual fix (HTTPS works for everyone, no SSH key required):"
+    warn "    git clone https://github.com/rohit-vc26/IQ.git $NCS_DIR"
+    _ncs_cloned=0
+  fi
+  rm -f "$_ncs_err"
+  if [ "$_ncs_cloned" = "1" ]; then
     cd "$NCS_DIR"
     npm install --silent 2>/dev/null && ok "NCS dependencies installed" \
       || warn "NCS npm install failed — run: cd $NCS_DIR && npm install"
     cd - >/dev/null
-    ok "NCS cloned to $NCS_DIR"
-  else
-    warn "NCS clone failed (private repo). Clone manually:"
-    warn "  git clone git@github.com:rohit-vc26/IQ.git $NCS_DIR"
   fi
 else
   skip "NCS already at $NCS_DIR"
@@ -451,6 +479,8 @@ full_spec = [
     ("PreToolUse", "Grep|Glob|Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Enriching with GitNexus graph context..."),
     ("PreToolUse", "Edit|Write|NotebookEdit|Bash", "bash ~/.claude/hooks/dev_rules_guard.sh", 3000, None),
     ("PostToolUse", "Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Checking GitNexus index freshness..."),
+    ("PostToolUse", "Write|Edit|NotebookEdit", "bash ~/.claude/hooks/memory_index_guard.sh", 3000, None),
+    ("PostToolUse", "Write|Edit|MultiEdit|NotebookEdit", "bash ~/.claude/hooks/registry_sync_guard.sh", 3000, None),
     ("Stop", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/session_title_generator.py", 15000, None),
