@@ -3,7 +3,7 @@
 Full Claude Code agent setup — hooks, skills, NCS dashboard, GitNexus knowledge graph.
 One `git clone + bash install.sh` gives you the complete dev workflow on any machine.
 
-**Works on:** macOS · Ubuntu · Linux
+**Works on:** macOS · Ubuntu · Linux · Windows (via Git Bash — see [WINDOWS_INSTALL.md](WINDOWS_INSTALL.md))
 
 ---
 
@@ -108,6 +108,8 @@ git clone https://github.com/rohit-vc26/claude-power-kit
 cd claude-power-kit
 bash install.sh
 ```
+
+> **Windows users:** Run these commands in **Git Bash** (not PowerShell). See [WINDOWS_INSTALL.md](WINDOWS_INSTALL.md) for the full Windows setup guide.
 
 The installer:
 
