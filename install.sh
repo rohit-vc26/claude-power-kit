@@ -144,14 +144,6 @@ cp "$KIT_DIR/hooks/memory_health.sh" "$HOOKS_DIR/memory_health.sh"
 chmod +x "$HOOKS_DIR/memory_health.sh"
 ok "memory_health.sh"
 
-cp "$KIT_DIR/hooks/memory_index_guard.sh" "$HOOKS_DIR/memory_index_guard.sh"
-chmod +x "$HOOKS_DIR/memory_index_guard.sh"
-ok "memory_index_guard.sh"
-
-cp "$KIT_DIR/hooks/registry_sync_guard.sh" "$HOOKS_DIR/registry_sync_guard.sh"
-chmod +x "$HOOKS_DIR/registry_sync_guard.sh"
-ok "registry_sync_guard.sh"
-
 # Restore CLI in PATH
 mkdir -p "$HOME/.local/bin"
 cp "$KIT_DIR/bin/power-kit-memory-restore" "$HOME/.local/bin/power-kit-memory-restore"
@@ -479,8 +471,6 @@ full_spec = [
     ("PreToolUse", "Grep|Glob|Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Enriching with GitNexus graph context..."),
     ("PreToolUse", "Edit|Write|NotebookEdit|Bash", "bash ~/.claude/hooks/dev_rules_guard.sh", 3000, None),
     ("PostToolUse", "Bash", "node ~/.claude/hooks/gitnexus/gitnexus-hook.cjs", 10, "Checking GitNexus index freshness..."),
-    ("PostToolUse", "Write|Edit|NotebookEdit", "bash ~/.claude/hooks/memory_index_guard.sh", 3000, None),
-    ("PostToolUse", "Write|Edit|MultiEdit|NotebookEdit", "bash ~/.claude/hooks/registry_sync_guard.sh", 3000, None),
     ("Stop", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/live_session_tracker.py", 5000, None),
     ("SessionEnd", "", "python3 ~/.claude/hooks/session_title_generator.py", 15000, None),
